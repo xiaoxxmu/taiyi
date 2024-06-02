@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "common/TaiyiMdSpi.h"
+#include "TaiyiMdSpi.h"
 
 using namespace std;
 

@@ -1,6 +1,6 @@
 #pragma once 
 
-#include "ctp_api/ThostFtdcMdApi.h"
+#include "ThostFtdcMdApi.h"
 
 class TaiyiMdSpi: public CThostFtdcMdSpi {
     public: 

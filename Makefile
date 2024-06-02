@@ -1,9 +1,9 @@
 CXX := g++
 
-CXXFLAGS := -std=c++11 -Wall -Iinclude
+CXXFLAGS := -std=c++11 -Wall -Iapi
 
-LIBDIR := /D/GitHub/taiyi/lib
-LDFLAGS := -L$(LIBDIR) -lthostmduserapi.dll -lthosttraderapi.dll
+LIBDIR := api/linux_x64
+LDFLAGS := -L$(LIBDIR) -lthostmduserapi_se -lthosttraderapi_se
 
 TARGET := taiyi.exe
 

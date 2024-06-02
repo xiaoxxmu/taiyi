@@ -1,11 +1,8 @@
 #include <iostream> 
 
-#include "common/TaiyiMdSpi.h"
+#include "TaiyiMdSpi.h"
 
 using namespace std;
-
-#pragma comment (lib, "thostmduserapi.lib")
-#pragma comment (lib, "thosttraderapi.lib")
 
 CThostFtdcMdApi *g_pMdUserApi = nullptr;
 char gMdFrontAddr[] = "tcp://180.168.146.187:10010";
