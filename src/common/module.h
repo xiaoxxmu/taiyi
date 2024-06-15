@@ -20,10 +20,11 @@ class Module {
     virtual ~Module() {} // TODO
 
     uint32_t GetModuleId() { return _moduleId; }
+    Container* GetContainer() { return _container; }
 
   public:
-    virtual Status Dispatch(Message* msg) = 0;
-    Status SendMsg(Message* msg);
+    virtual Status Dispatch(TaiyiMessage* msg) = 0;
+    Status SendMsg(TaiyiMessage* msg);
 
   private:
     uint32_t _moduleId;

@@ -12,7 +12,7 @@
 #include "container.h"
 #include "proc.h"
 
-Status Module::SendMsg(Message* msg) {
+Status Module::SendMsg(TaiyiMessage* msg) {
     Container* dstContainer = TaiyiMain()->GetContainer(msg->dstContainerId);
     if (dstContainer->Push(msg)) {
         return StatusOK;

@@ -21,7 +21,7 @@ class StoreModule : public Module {
     ~StoreModule() {} // TODO
 
   public:
-    Status Dispatch(Message* msg) { return StatusError; } // TODO
+    Status Dispatch(TaiyiMessage* msg) { return StatusError; } // TODO
 
   private:
     std::string _filePath; // TODO

@@ -22,7 +22,11 @@ struct Config {
     uint32_t mdContainerNum;
     uint32_t tradeContainerNum;
 
+    std::string mdFrontAddr;
+
     std::vector<InstrumentConfig*> instruments;
 
-    bool mockCTPApi;
+    std::string brokerId;
+    std::string investerId;
+    std::string investerPwd;
 };

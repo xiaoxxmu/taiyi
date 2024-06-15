@@ -23,7 +23,7 @@ class LockFreeMessageQueue {
     LockFreeMessageQueue() : _queue(MAX_WAITING_MESSAGE_NUM), _readIndex(0), _writeIndex(0) {}
     virtual ~LockFreeMessageQueue() {}
 
-    bool Push(Message* pMsg) {
+    bool Push(TaiyiMessage* pMsg) {
         size_t currentWriteIndex = _writeIndex.load(std::memory_order_relaxed);
         size_t nextWriteIndex = (currentWriteIndex + 1) % _queue.size();
 
@@ -37,7 +37,7 @@ class LockFreeMessageQueue {
         return true;
     }
 
-    bool Pop(Message **ppMsg) {
+    bool Pop(TaiyiMessage **ppMsg) {
         size_t currentReadIndex = _readIndex.load(std::memory_order_relaxed);
 
         if (currentReadIndex == _writeIndex.load(std::memory_order_acquire)) {
@@ -51,7 +51,7 @@ class LockFreeMessageQueue {
     }
 
   private:
-    std::vector<Message*> _queue;
+    std::vector<TaiyiMessage*> _queue;
     std::atomic<size_t> _readIndex;
     std::atomic<size_t> _writeIndex;
 };

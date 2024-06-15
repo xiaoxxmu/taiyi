@@ -12,5 +12,12 @@
 #include <sys/types.h>
 
 enum TaiyiCmdCode {
-    PushMarketDataReq = 1
+    PushMarketDataReq = 1,
+    PushTradeSignalReq
+};
+
+// 由InstrumentMdModule发送给InstrumentTradeModule的信号处理请求
+struct InstrumentTradeSignalReq {
+    void* pLastMarketData;
+    int signal;
 };

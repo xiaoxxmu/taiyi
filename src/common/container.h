@@ -37,7 +37,7 @@ class Container {
     void Stop() {} // TODO
     void Polling();
 
-    bool Push(Message *msg) { return _lfmQueue.Push(msg); }
+    bool Push(TaiyiMessage *msg) { return _lfmQueue.Push(msg); }
 
   private:
     std::map<uint32_t, Module*> _modules;
