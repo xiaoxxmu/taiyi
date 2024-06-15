@@ -27,6 +27,8 @@
 #define TAIYI_TRADE_MODULE_ID ((TAIYI_MD_MODULE_ID)+(TAIYI_MAX_MD_MODULE_NUM))
 #define TAIYI_MAX_TRADE_MODULE_NUM (TAIYI_MAX_MD_MODULE_NUM)
 
+// 单个交易周期每个合约有效行情个数，按6小时算，多预留一些
+#define MD_NUM_PER_INSTRUMENT (6*7200)
 
 typedef uint32_t CmdCode;
 

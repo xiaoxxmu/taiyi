@@ -38,6 +38,9 @@ class Proc {
     Status RegisterInstrumentLocation(InstrumentLocation& location);
     InstrumentLocation* GetInstrumentLocation(const std::string& instrumentId);
 
+    void RegisterCtpService(void* ctpService) { _ctpService = ctpService; }
+    void* GetCtpService() { return _ctpService; }
+
   private:
     Proc() {}
     virtual ~Proc() {} // TODO free
@@ -45,6 +48,9 @@ class Proc {
   private:
     std::map<uint32_t, Container*> _containers;
     std::map<std::string, InstrumentLocation*> _locations;
+
+  private:
+    void* _ctpService;
 
   private:
     static Proc _procInstance;

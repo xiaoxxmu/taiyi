@@ -13,7 +13,7 @@
 
 #include "common.h"
 
-struct Message {
+struct TaiyiMessage {
     uint32_t srcContainerId;
     uint32_t srcModuleId;
     uint32_t dstContainerId;

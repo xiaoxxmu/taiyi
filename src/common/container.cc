@@ -55,7 +55,7 @@ Status Container::Start() {
 
 void Container::Polling() {
     while (true) {
-        Message* msg = NULL;
+        TaiyiMessage* msg = NULL;
         if (_lfmQueue.Pop(&msg)) {
             Module* pModule = GetModule(msg->dstModuleId);
             if (!pModule) {
