@@ -21,10 +21,10 @@
 
 struct InstrumentLocation {
     std::string instrumentId;
-    uint32_t mdContainerId;
-    uint32_t mdModuleId;
-    uint32_t tradeContainerId;
-    uint32_t tradeModuleId;
+    Container* mdContainer;
+    Module* mdModule;
+    Container* tradeContainer;
+    Module* tradeModule;
 };
 
 class Proc {

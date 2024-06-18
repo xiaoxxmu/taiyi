@@ -23,10 +23,13 @@ struct Config {
     uint32_t tradeContainerNum;
 
     std::string mdFrontAddr;
+    std::string traderFrontAddr;
 
     std::vector<InstrumentConfig*> instruments;
 
     std::string brokerId;
     std::string investerId;
     std::string investerPwd;
+    std::string authCode;
+    std::string appId;
 };

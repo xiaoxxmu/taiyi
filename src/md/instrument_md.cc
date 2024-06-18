@@ -27,7 +27,7 @@ InstrumentMdModule::InstrumentMdModule(uint32_t moduleId, Container* pContainer,
 
 Status InstrumentMdModule::Dispatch(TaiyiMessage* msg) {
     switch (msg->cmd) {
-        case PushMarketDataReq:
+        case PushMarketDataReqCmd:
             return HandlePushMarketDataReq(msg);
     }
     return StatusOK;
@@ -51,17 +51,15 @@ void InstrumentMdModule::SendTradeSignal(int signal) {
     InstrumentLocation* loc = GetLocation();
     msg->srcContainerId = GetContainer()->GetContainerId();
     msg->srcModuleId = GetModuleId();
-    msg->dstContainerId = loc->tradeContainerId;
-    msg->dstModuleId = loc->tradeModuleId;
-
-    CThostFtdcDepthMarketDataField* pLastMarketData = GetLastMarketData();
+    msg->dstContainerId = loc->tradeContainer->GetContainerId();
+    msg->dstModuleId = loc->tradeModule->GetModuleId();
 
     InstrumentTradeSignalReq* req = (InstrumentTradeSignalReq*)_pTradeReqPool->Zalloc();
     DBG_ASSERT(req);
     req->signal = signal;
-    req->pLastMarketData = pLastMarketData;
+    req->curMdNum = GetCurMdNum();
 
-    msg->cmd = PushTradeSignalReq;
+    msg->cmd = PushTradeSignalReqCmd;
     msg->data[0] = (void*)req;
 
     if (StatusOK != SendMsg(msg)) {

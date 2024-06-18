@@ -50,7 +50,7 @@ class InstrumentMdModule : public Module {
     uint32_t _mdNum;
 
   private:
-    CThostFtdcDepthMarketDataField* GetLastMarketData() { return _pMds[_mdNum-1]; }
+    uint32_t GetCurMdNum() { return _mdNum; }
 
   private:
     TaiyiMemPool* _pMsgPool;

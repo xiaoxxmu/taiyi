@@ -8,6 +8,9 @@
 
 #pragma once
 
+#include "ThostFtdcMdApi.h"
+#include "ThostFtdcTraderApi.h"
+
 #include "common.h"
 #include "config.h"
 
@@ -18,5 +21,7 @@ class ICtpService {
   public:
     virtual void Start() = 0;
 
+    virtual CThostFtdcMdApi* GetMdApi() = 0;
+    virtual CThostFtdcTraderApi* GetTraderApi() = 0;
     // TODO
 };
