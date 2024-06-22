@@ -8,6 +8,7 @@
 
 #include "proc.h"
 
+#include "module.h"
 #include "log.h"
 #include "mem.h"
 
@@ -39,7 +40,8 @@ Container* Proc::GetContainer(uint32_t containerId) {
 
 Status Proc::RegisterInstrumentLocation(InstrumentLocation& location) {
     LOG_INFO("RegisterInstrumentLocation InstrumentId: %s mdContainerId %d mdModuleId %d tradeContainerId %d tradeModuleId %d",
-        location.instrumentId.c_str(), location.mdContainerId, location.mdModuleId, location.tradeContainerId, location.tradeModuleId);
+        location.instrumentId.c_str(), location.mdContainer->GetContainerId(), location.mdModule->GetModuleId(),
+        location.tradeContainer->GetContainerId(), location.tradeModule->GetModuleId());
 
     InstrumentLocation *iLoc = (InstrumentLocation*)TAIYI_MALLOC(sizeof(InstrumentLocation));
     if (!iLoc) {
@@ -47,10 +49,10 @@ Status Proc::RegisterInstrumentLocation(InstrumentLocation& location) {
         return StatusNoMemory;
     }
     iLoc->instrumentId = location.instrumentId;
-    iLoc->mdContainerId = location.mdContainerId;
-    iLoc->mdModuleId = location.mdModuleId;
-    iLoc->tradeContainerId = location.tradeContainerId;
-    iLoc->tradeModuleId = location.tradeModuleId;
+    iLoc->mdContainer = location.mdContainer;
+    iLoc->mdModule = location.mdModule;
+    iLoc->tradeContainer = location.tradeContainer;
+    iLoc->tradeModule = location.tradeModule;
 
     std::pair<std::map<std::string, InstrumentLocation*>::iterator, bool> ret;
     ret = _locations.insert(std::pair<std::string, InstrumentLocation*>(iLoc->instrumentId, iLoc));

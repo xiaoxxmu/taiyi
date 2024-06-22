@@ -8,6 +8,7 @@
 
 #include "ctp_service.h"
 #include "md_spi.h"
+#include "trade_spi.h"
 
 CtpService::CtpService(Config* cfg) {
     _cfg = cfg;
@@ -20,13 +21,21 @@ CtpService::CtpService(Config* cfg) {
     strcpy(_pMdFrontAddr, cfg->mdFrontAddr.c_str());
     _pMdApi->RegisterFront(_pMdFrontAddr);
 
-    // TODO create traderApi
+    _pTraderApi = CThostFtdcTraderApi::CreateFtdcTraderApi(); // TODO FlowPath
+    DBG_ASSERT(_pTraderApi);
+    TaiyiTraderSpi* pTraderSpi = new TaiyiTraderSpi(cfg, _pTraderApi);
+    DBG_ASSERT(pTraderSpi);
+    _pTraderApi->RegisterSpi(pTraderSpi);
+    strcpy(_pTraderFrontAddr, cfg->traderFrontAddr.c_str());
+    _pTraderApi->RegisterFront(_pTraderFrontAddr);
+    _pTraderApi->SubscribePrivateTopic(THOST_TERT_QUICK);
+    _pTraderApi->SubscribePublicTopic(THOST_TERT_QUICK);
 }
 
 void CtpService::Start() {
     _pMdApi->Init();
-    // TODO _pTraderApi->Init();
+    _pTraderApi->Init();
 
     _pMdApi->Join();
-    // TODO _pTraderApi->Join();
+    _pTraderApi->Join();
 }

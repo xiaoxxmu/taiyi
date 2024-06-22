@@ -11,6 +11,7 @@
 #include "protocol.h"
 #include "log.h"
 #include "proc.h"
+#include "module.h"
 
 #include "md_spi.h"
 
@@ -149,22 +150,19 @@ void TaiyiMdSpi::OnRtnDepthMarketData(CThostFtdcDepthMarketDataField *pDepthMark
 
     TaiyiMessage* msg = (TaiyiMessage*)_pMsgPool->Zalloc();
     DBG_ASSERT(msg);
-    msg->cmd = PushMarketDataReq;
+    msg->cmd = PushMarketDataReqCmd;
     msg->srcContainerId = _containerId;
     msg->srcModuleId = _moduleId;
-    msg->dstContainerId = location->mdContainerId;
-    msg->dstModuleId = location->mdModuleId;
+    msg->dstContainerId = location->mdContainer->GetContainerId();
+    msg->dstModuleId = location->mdModule->GetModuleId();
 
     CThostFtdcDepthMarketDataField* md = (CThostFtdcDepthMarketDataField*)_pMdPool->Zalloc();
     memcpy(md, pDepthMarketData, sizeof(CThostFtdcDepthMarketDataField));
     msg->data[0] = md;
 
-    Container* container = TaiyiMain()->GetContainer(location->mdContainerId);
-    DBG_ASSERT(container);
-
-    if (container->Push(msg)) {
+    if (location->mdContainer->Push(msg)) {
         LOG_ERROR("Push instrument %s market data to container %d module %d failed",
-            location->instrumentId.c_str(), location->mdContainerId, location->mdModuleId);
+            location->instrumentId.c_str(), msg->dstContainerId, msg->dstModuleId);
         // TODO 异常或重试队列？
     }
 }

@@ -12,12 +12,19 @@
 #include <sys/types.h>
 
 enum TaiyiCmdCode {
-    PushMarketDataReq = 1,
-    PushTradeSignalReq
+    PushMarketDataReqCmd = 1,
+    PushTradeSignalReqCmd,
+
+    OrderInsertRspCmd,
 };
 
 // 由InstrumentMdModule发送给InstrumentTradeModule的信号处理请求
 struct InstrumentTradeSignalReq {
-    void* pLastMarketData;
     int signal;
+    uint32_t curMdNum;
+};
+
+struct OrderInsertRsp {
+    int nRequestId;
+    int retcode;
 };

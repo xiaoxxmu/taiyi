@@ -20,7 +20,7 @@ Container* NewContainer(uint32_t containerId, std::string& containerName, bool i
     return c;
 }
 
-void RegisterContainer(Config* cfg) {
+void RegisterContainer(Config* cfg, ICtpService* ctpService) {
     std::string storeContainerName = "store";
     Container* storeContainer = NewContainer(TAIYI_STORE_CONTAINER_ID, storeContainerName, true);
     Status ret = TaiyiMain()->RegisterContainer(storeContainer);
@@ -51,16 +51,16 @@ void RegisterContainer(Config* cfg) {
         Module* mdModule = new InstrumentMdModule(TAIYI_MD_MODULE_ID+i, mdContainer, cfg->instruments[i]);
         ret = mdContainer->RegisterModule(mdModule);
         DBG_ASSERT(ret == StatusOK);
-        Module* tradeModule = new InstrumentTradeModule(TAIYI_TRADE_MODULE_ID+i, tradeContainer);
+        Module* tradeModule = new InstrumentTradeModule(TAIYI_TRADE_MODULE_ID+i, tradeContainer, ctpService->GetTraderApi());
         ret = tradeContainer->RegisterModule(tradeModule);
         DBG_ASSERT(ret == StatusOK);
 
         InstrumentLocation location;
         location.instrumentId = cfg->instruments[i]->instrumentId;
-        location.mdContainerId = mdContainer->GetContainerId();
-        location.mdModuleId = mdModule->GetModuleId();
-        location.tradeContainerId = tradeContainer->GetContainerId();
-        location.tradeModuleId = tradeModule->GetModuleId();
+        location.mdContainer = mdContainer;
+        location.mdModule = mdModule;
+        location.tradeContainer = tradeContainer;
+        location.tradeModule = tradeModule;
         ret = TaiyiMain()->RegisterInstrumentLocation(location);
         DBG_ASSERT(ret == StatusOK);
     }
@@ -84,16 +84,9 @@ void StartContainer(Config* cfg) {
     }
 }
 
-Status StartupContainer(Config* cfg) {
-    RegisterContainer(cfg);
+Status StartupContainer(Config* cfg, ICtpService* ctpService) {
+    RegisterContainer(cfg, ctpService);
     StartContainer(cfg);
-    return StatusOK;
-}
-
-Status StartCtpService(Config* cfg) {
-    ICtpService* ctpService = ICtpService::CreateCtpService(cfg);
-    TaiyiMain()->RegisterCtpService((void*)ctpService);
-    ctpService->Start();
     return StatusOK;
 }
 
@@ -111,11 +104,13 @@ int main(int argc, char *argv[]) {
     insCfg.instrumentId = "zn1705";
     cfg->instruments.push_back(&insCfg);
 
-    Status ret = StartupContainer(cfg);
+    ICtpService* ctpService = ICtpService::CreateCtpService(cfg);
+    TaiyiMain()->RegisterCtpService((void*)ctpService);
+
+    Status ret = StartupContainer(cfg, ctpService);
     DBG_ASSERT(ret == StatusOK);
 
-    ret = StartCtpService(cfg);
-    DBG_ASSERT(ret == StatusOK);
+    ctpService->Start();
 
     // TODO 退出函数
 
