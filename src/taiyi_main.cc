@@ -51,7 +51,7 @@ void RegisterContainer(Config* cfg, ICtpService* ctpService) {
         Module* mdModule = new InstrumentMdModule(TAIYI_MD_MODULE_ID+i, mdContainer, cfg->instruments[i]);
         ret = mdContainer->RegisterModule(mdModule);
         DBG_ASSERT(ret == StatusOK);
-        Module* tradeModule = new InstrumentTradeModule(TAIYI_TRADE_MODULE_ID+i, tradeContainer, ctpService->GetTraderApi());
+        Module* tradeModule = new InstrumentTradeModule(TAIYI_TRADE_MODULE_ID+i, tradeContainer, ctpService);
         ret = tradeContainer->RegisterModule(tradeModule);
         DBG_ASSERT(ret == StatusOK);
 

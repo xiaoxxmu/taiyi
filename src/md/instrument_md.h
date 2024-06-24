@@ -13,12 +13,11 @@
 
 #include <string>
 
-#include "ThostFtdcMdApi.h"
-
 #include "proc.h"
 #include "module.h"
 #include "config.h"
 #include "mem.h"
+#include "ctp_data.h"
 
 class InstrumentMdModule : public Module {
   public:
@@ -46,7 +45,7 @@ class InstrumentMdModule : public Module {
     }
 
   private:
-    CThostFtdcDepthMarketDataField* _pMds[MD_NUM_PER_INSTRUMENT]; // 全缓存行情信息
+    MarketData* _pMds[MD_NUM_PER_INSTRUMENT]; // 全缓存行情信息
     uint32_t _mdNum;
 
   private:

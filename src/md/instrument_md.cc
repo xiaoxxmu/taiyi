@@ -34,7 +34,7 @@ Status InstrumentMdModule::Dispatch(TaiyiMessage* msg) {
 }
 
 Status InstrumentMdModule::HandlePushMarketDataReq(TaiyiMessage* msg) {
-    _pMds[_mdNum++] = (CThostFtdcDepthMarketDataField*)msg->data[0];
+    _pMds[_mdNum++] = (MarketData*)msg->data[0];
     int signal = DoStrategy();
     SendTradeSignal(signal);
     return StatusOK;
@@ -56,8 +56,11 @@ void InstrumentMdModule::SendTradeSignal(int signal) {
 
     InstrumentTradeSignalReq* req = (InstrumentTradeSignalReq*)_pTradeReqPool->Zalloc();
     DBG_ASSERT(req);
-    req->signal = signal;
+
     req->curMdNum = GetCurMdNum();
+
+    req->signal = signal;
+    // TODO 价格和数量
 
     msg->cmd = PushTradeSignalReqCmd;
     msg->data[0] = (void*)req;
