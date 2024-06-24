@@ -14,8 +14,8 @@
 
 InstrumentTradeModule::InstrumentTradeModule(
     uint32_t moduleId, Container* pContainer,
-    CThostFtdcTraderApi* pTraderApi) : Module(moduleId, pContainer) {
-    _pTraderApi = pTraderApi;
+    , ICtpService* pCtpService) : Module(moduleId, pContainer) {
+    _pCtpService = pCtpService;
 
     // TODO
 }
@@ -30,13 +30,17 @@ Status InstrumentTradeModule::Dispatch(TaiyiMessage* msg) {
 
 Status InstrumentTradeModule::HandlePushTradeSignalReq(TaiyiMessage* msg) {
     InstrumentTradeSignalReq* req = (InstrumentTradeSignalReq*)msg->data[0];
-    AddTradeSignal(req->curMdNum-1, req->signal); // TODO 判断信号是否合法，通过idx时间戳等信息来判断
+    TradeSignal signal = {
+        .signal=req->signal,
+        .price=req->price,
+        .volue = price->volume};
+    AddTradeSignal(req->curMdNum-1, signal); // TODO 判断信号是否合法，通过idx时间戳等信息来判断
     return HandleTradeSignal();
 }
 
 Status InstrumentTradeModule::HandleTradeSignal() {
-    TradeSignalOrderRecord* pRecord = GetLastRecord();
-    switch (pRecord->signal) {
+    TradeInfo* pInfo = GetLastTradeInfo();
+    switch (pInfo->signal) {
         case -1:
             return GoingShort();
         case 0:
@@ -44,102 +48,149 @@ Status InstrumentTradeModule::HandleTradeSignal() {
         case 1:
             return GoingLong();
         default:
-            LOG_ERROR("Invalid signal %d", pRecord->signal);
+            LOG_ERROR("Invalid signal %d", pInfo->signal);
     }
     return StatusError;
 }
 
-
-/*--------------------------------------------------------------------------------------------------------
-    当前持仓状态              未成交订单状态                   对应操作
-----------------------------------------------------------------------------------------------------------
-    净                        无挂单                           下空单
-----------------------------------------------------------------------------------------------------------
-    净                        有空单                           根据信号价格和挂单价格判断是否撤单重新下空单
-----------------------------------------------------------------------------------------------------------
-    净                        有多单                           撤多单，下空单
-----------------------------------------------------------------------------------------------------------
-    多头                      无挂单                           平多单，下空单
-----------------------------------------------------------------------------------------------------------
-    多头                      有空单                           平多单
-----------------------------------------------------------------------------------------------------------
-    多头                      有多单                           撤多单，平多单
-----------------------------------------------------------------------------------------------------------
-    空头                      无挂单                           无操作
-----------------------------------------------------------------------------------------------------------
-    空头                      有空单                           TODO
-----------------------------------------------------------------------------------------------------------
-    空头                      有多单                           撤多单
---------------------------------------------------------------------------------------------------------*/
+// 做空信号，撤多单，平多仓，下空单
 Status InstrumentTradeModule::GoingShort() {
-    switch (_pd) {
-        case THOST_FTDC_PD_Net: // 净 => 当前无持仓？ TODO
-            // TODO 判断挂单情况
-            break;
-        case THOST_FTDC_PD_Long:
-            // TODO 判断挂单情况
-            break;
-        case THOST_FTDC_PD_Short:
-            break;
+    TradeInfo* pInfo = GetLastTradeInfo();
+    if (!pInfo) {
+        return StatusError;
     }
-    return StatusError;
+
+    int shortOrderVolume = 0;
+    int sellCloseOrderVolume = 0; // 平多单数量
+    for (auto it = _unfinishedOrder.begin(); it != _unfinishedOrder.end(); it++) {
+        Order* order = it->second;
+        if (order->direction == OrderDirectionBuy) { // 挂单为多单，则撤单
+            CancelOrder(order->ref);
+        } else if (order->direction == OrderDirectionSell) {
+            // 挂单为空单，这里先不做处理
+            // TODO 根据价格判断是否需要撤单, 如果撤单，则在算入最后需要新下单的数量
+            shortOrderVolume += order->totalVolume - order->tradedVolume;
+            if (order->combOffset == OrderCombOffsetClose) {
+                sellCloseOrderVolume += order->totalVolume - order->tradedVolume;
+            }
+        } else {
+            LOG_ERROR("invalid order direction %d", order->direction);
+        }
+    }
+
+    if (_position.longVolume > sellCloseOrderVolume) {
+        int leftLongVolume = _position.longVolume - sellCloseOrderVolume;
+        InsertOrder(OrderDirectionSell, OrderCombOffsetClose, leftLongVolume);
+    }
+
+    if (pInfo->signal.volume > shortOrderVolume + _position.shortVolume) { // 挂单和持仓数量不足，补仓
+        int deltaShortVolume = pInfo->signal.volume - shortOrderVolume - _position.shortVolume;
+        InsertOrder(OrderDirectionSell, OrderCombOffsetOpen, deltaShortVolume);
+    }
+
+    return StatusOK;
 }
 
-/*--------------------------------------------------------------------------------------------------------
-    当前持仓状态              未成交订单状态                   对应操作
-----------------------------------------------------------------------------------------------------------
-    净                        无挂单                           下多单
-----------------------------------------------------------------------------------------------------------
-    净                        有空单                           撤空单，下多单
-----------------------------------------------------------------------------------------------------------
-    净                        有多单                           根据信号价格和挂单价格判断是否撤单重新下多单
-----------------------------------------------------------------------------------------------------------
-    多头                      无挂单                           无操作
-----------------------------------------------------------------------------------------------------------
-    多头                      有空单                           撤空单
-----------------------------------------------------------------------------------------------------------
-    多头                      有多单                           TODO
-----------------------------------------------------------------------------------------------------------
-    空头                      无挂单                           平空单，下多单
-----------------------------------------------------------------------------------------------------------
-    空头                      有空单                           撤空单，平空单
-----------------------------------------------------------------------------------------------------------
-    空头                      有多单                           平空单
---------------------------------------------------------------------------------------------------------*/
+// 做多信号，撤空单，平空仓，下多单
 Status InstrumentTradeModule::GoingLong() {
-    TradeSignalOrderRecord* lastRecord = GetLastRecord();
+    TradeInfo* pInfo = GetLastTradeInfo();
+    if (!pInfo) {
+        return StatusError;
+    }
 
-    // TODO 根据当前的持仓情况进行操作
+    int longOrderVolume = 0;
+    int buyCloseOrderVolume = 0; // 平空单数量
+    for (auto it = _unfinishedOrder.begin(); it != _unfinishedOrder.end(); it++) {
+        Order* order = it->second;
+        if (order->direction == OrderDirectionBuy) {
+            // 挂单为多单，这里先不做处理；
+            // TODO 根据价格判断是否需要撤单, 如果撤单，则在算入最后需要新下单的数量
+            longOrderVolume += order->totalVolume - order->tradedVolume;
+            if (order->combOffset == OrderCombOffsetClose) {
+                buyCloseOrderVolume +=  order->totalVolume - order->tradedVolume;
+            }
+        } else if (order->direction == OrderDirectionSell) {
+            CancelOrder(order->ref);
+        } else {
+            LOG_ERROR("invalid order direction %d", order->direction);
+        }
+    }
 
-    return StatusError;
+    if (_position.shortVolume > buyCloseOrderVolume) {
+        int leftShortVolume = _position.shortVolume - buyCloseOrderVolume;
+        InsertOrder(OrderDirectionBuy, OrderCombOffsetClose, leftShortVolume);
+    }
+
+    if (pInfo->signal.volume > longOrderVolume + _position.longVolume) {
+        int deltaLongVolume = pInfo->signal.volume - longOrderVolume - _position.longVolume;
+        InsertOrder(OrderDirectionBuy, OrderCombOffsetOpen, deltaLongVolume);
+    }
+
+    return StatusOK;
 }
 
-
-/*--------------------------------------------------------------------------------------------------------
-    当前持仓状态              未成交订单状态                   对应操作
-----------------------------------------------------------------------------------------------------------
-    净                        无挂单                           无操作
-----------------------------------------------------------------------------------------------------------
-    净                        有空单                           撤空单
-----------------------------------------------------------------------------------------------------------
-    净                        有多单                           撤多单
-----------------------------------------------------------------------------------------------------------
-    多头                      无挂单                           平多单
-----------------------------------------------------------------------------------------------------------
-    多头                      有空单                           撤空单，平多单
-----------------------------------------------------------------------------------------------------------
-    多头                      有多单                           撤多单，平多单
-----------------------------------------------------------------------------------------------------------
-    空头                      无挂单                           平空单
-----------------------------------------------------------------------------------------------------------
-    空头                      有空单                           撤空单，平空单
-----------------------------------------------------------------------------------------------------------
-    空头                      有多单                           撤多单，平空单
---------------------------------------------------------------------------------------------------------*/
+// 平仓信号，撤单，平仓
 Status InstrumentTradeModule::ClosePosition() {
-    TradeSignalOrderRecord* lastRecord = GetLastRecord();
+    TradeInfo* pInfo = GetLastTradeInfo();
+    if (!pInfo) {
+        return StatusError;
+    }
 
-    // TODO 根据当前的持仓情况进行操作
+    for (auto it = _unfinishedOrder.begin(); it != _unfinishedOrder.end(); it++) {
+        Order* order = it->second;
+        CancelOrder(order->ref);
+    }
 
-    return StatusError;
+    if (_position.shortVolume > 0) {
+        InsertOrder(OrderDirectionBuy, OrderCombOffsetClose, _position.shortVolume);
+    }
+
+    if (_position.longVolume > 0) {
+        InsertOrder(OrderDirectionSell, OrderCombOffsetClose, _position.longVolume);
+    }
+
+    return StatusOK;
+}
+
+Status InstrumentTradeModule::InsertOrder(OrderDirection direction, OrderCombOffset combOffset, int volume) {
+    TradeInfo* pInfo = GetLastTradeInfo();
+    DBG_ASSERT(pInfo);
+    Order* order = (Order*)_pOrderPool->Zalloc();
+    DBG_ASSERT(order);
+
+    order->direction = direction;
+    order->combOffset = combOffset;
+    order->totalVolume = volume;
+    order->price = pInfo->signal.price;
+    order->tradeStatus = StatusInit;
+    order->tradedVolume = 0;
+
+    order->ref = _pCtpService->InsertOrder(_instrument, order);
+    if (!order->ref) {
+        return StatusError;
+    }
+
+    pInfo->orders.push_back(order);
+    _unfinishedOrder.insert(std::pair<OrderRefType, Order*>(order->ref, order));
+
+    return StatusOK;
+}
+
+Status InstrumentTradeModule::CancelOrder(OrderRefType ref) {
+    TradeInfo* pInfo = GetLastTradeInfo();
+    DBG_ASSERT(pInfo);
+
+    OrderAction* action = (OrderAction*)_pOrderActionPool->Zalloc();
+    DBG_ASSERT(action);
+    action->ref = order->ref;
+    Status ret = _pCtpService->CancelOrder(order->ref);
+    if (ret) {
+        LOG_ERROR("Cancel order ref(%u) ret(%d)" order->ref, ret);
+        return ret;
+    }
+
+    pInfo->actions.push_back(action);
+    //_unfinishedAction.insert(std::pair<OrderRefType, OrderAction*>(order->ref, action));
+
+    return StatusOK;
 }

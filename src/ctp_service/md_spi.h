@@ -13,6 +13,7 @@
 #include "config.h"
 #include "message.h"
 #include "mem.h"
+#include "ctp_data.h"
 
 // 继承自CTP父类的回调接口并实现
 class TaiyiMdSpi: public CThostFtdcMdSpi {

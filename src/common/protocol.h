@@ -20,11 +20,20 @@ enum TaiyiCmdCode {
 
 // 由InstrumentMdModule发送给InstrumentTradeModule的信号处理请求
 struct InstrumentTradeSignalReq {
-    int signal;
     uint32_t curMdNum;
+    int signal;
+    double price;
+    int volume;
 };
 
-struct OrderInsertRsp {
+struct InsertOrderErrRsp {
+    uint32_t orderRef;
     int nRequestId;
     int retcode;
+
+    // TODO
+};
+
+struct OrderTradeRsp {
+    // TODO 考虑与InsertOrderErrRsp合成一个请求
 };

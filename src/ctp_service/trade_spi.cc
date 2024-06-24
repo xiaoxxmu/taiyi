@@ -135,8 +135,16 @@ void TaiyiTraderSpi::OnRspOrderInsert(
 	CThostFtdcRspInfoField *pRspInfo,
 	int nRequestID,
 	bool bIsLast) {
+	OnErrRtnOrderInsert(pInputOrder, pRspInfo);
+}
+
+void TaiyiTraderSpi::OnErrRtnOrderInsert(CThostFtdcInputOrderField *pInputOrder, CThostFtdcRspInfoField *pRspInfo) {
 	if (!pInputOrder) {
 		LOG_ERROR("OnRspOrderInsert invalid pInputOrder");
+		return ;
+	}
+
+	if (!pRspInfo || pRspInfo->ErrorID == 0) {
 		return ;
 	}
 
@@ -157,17 +165,13 @@ void TaiyiTraderSpi::OnRspOrderInsert(
 
 	OrderInsertRsp* rsp = (OrderInsertRsp*)_pOrderInsertRspPool->Zalloc();
 	DBG_ASSERT(rsp);
-	rsp->nRequestId = nRequestID;
+	rsp->orderRef = strtol(pInputOrder->OrderRef, NULL, 10);
 	rsp->retcode = pRspInfo ? int(pRspInfo->ErrorID) : 0;
 	msg->data[0] = rsp;
 
 	if (location->tradeContainer->Push(msg)) {
         // TODO 异常或重试队列？
     }
-}
-
-void TaiyiTraderSpi::OnErrRtnOrderInsert(CThostFtdcInputOrderField *pInputOrder, CThostFtdcRspInfoField *pRspInfo) {
-	// TODO
 }
 
 void TaiyiTraderSpi::OnRspOrderAction(

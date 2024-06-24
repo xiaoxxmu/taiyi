@@ -2,3 +2,5 @@
 .git/*
 
 setting.json
+
+build/*
