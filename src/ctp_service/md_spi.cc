@@ -137,11 +137,10 @@ void TaiyiMdSpi::OnRspUnSubForQuoteRsp(
 }
 
 void TaiyiMdSpi::OnRtnDepthMarketData(CThostFtdcDepthMarketDataField *pDepthMarketData) {
-
-    // TODO 先判断是否是合法的行情，如果不是合法的行情，则丢弃
+    if (!pDepthMarketData) { return ; }
+    // TODO 时间戳判断
 
     std::string instrumentId = pDepthMarketData->InstrumentID;
-
     InstrumentLocation* location = TaiyiMain()->GetInstrumentLocation(instrumentId);
     if (!location) {
         LOG_ERROR("InstrumentId %s NOT FOUND", instrumentId.c_str());
@@ -156,8 +155,44 @@ void TaiyiMdSpi::OnRtnDepthMarketData(CThostFtdcDepthMarketDataField *pDepthMark
     msg->dstContainerId = location->mdContainer->GetContainerId();
     msg->dstModuleId = location->mdModule->GetModuleId();
 
-    CThostFtdcDepthMarketDataField* md = (CThostFtdcDepthMarketDataField*)_pMdPool->Zalloc();
-    memcpy(md, pDepthMarketData, sizeof(CThostFtdcDepthMarketDataField));
+    MarketData* md = (MarketData*)_pMdPool->Zalloc();
+    DBG_ASSERT(md);
+    strcpy(md->UpdateTime, pDepthMarketData->UpdateTime);
+    md->UpdateMillisec = pDepthMarketData->UpdateMillisec;
+
+    md->LastPrice = pDepthMarketData->LastPrice;
+    md->Volume = pDepthMarketData->Volume;
+    md->PreSettlementPrice = pDepthMarketData->PreSettlementPrice;
+    md->SettlementPrice = pDepthMarketData->SettlementPrice;
+    md->UpperLimitPrice = pDepthMarketData->UpperLimitPrice;
+    md->LowerLimitPrice = pDepthMarketData->LowerLimitPrice;
+
+    md->BidPrice[0] = pDepthMarketData->BidPrice1;
+    md->BidPrice[1] = pDepthMarketData->BidPrice2;
+    md->BidPrice[2] = pDepthMarketData->BidPrice3;
+    md->BidPrice[3] = pDepthMarketData->BidPrice4;
+    md->BidPrice[4] = pDepthMarketData->BidPrice5;
+
+    md->BidVolume[0] = pDepthMarketData->BidVolume1;
+    md->BidVolume[1] = pDepthMarketData->BidVolume2;
+    md->BidVolume[2] = pDepthMarketData->BidVolume3;
+    md->BidVolume[3] = pDepthMarketData->BidVolume4;
+    md->BidVolume[4] = pDepthMarketData->BidVolume5;
+
+    md->AskPrice[0] = pDepthMarketData->AskPrice1;
+    md->AskPrice[1] = pDepthMarketData->AskPrice2;
+    md->AskPrice[2] = pDepthMarketData->AskPrice3;
+    md->AskPrice[3] = pDepthMarketData->AskPrice4;
+    md->AskPrice[4] = pDepthMarketData->AskPrice5;
+
+    md->AskVolume[0] = pDepthMarketData->AskVolume1;
+    md->AskVolume[1] = pDepthMarketData->AskVolume2;
+    md->AskVolume[2] = pDepthMarketData->AskVolume3;
+    md->AskVolume[3] = pDepthMarketData->AskVolume4;
+    md->AskVolume[4] = pDepthMarketData->AskVolume5;
+
+    md->AveragePrice = pDepthMarketData->AveragePrice;
+
     msg->data[0] = md;
 
     if (location->mdContainer->Push(msg)) {
@@ -195,6 +230,6 @@ TaiyiMdSpi::TaiyiMdSpi(Config* cfg, CThostFtdcMdApi* pMdApi) {
     uint32_t memPoolSize = cfg->instruments.size() * MD_NUM_PER_INSTRUMENT;
     _pMsgPool = new TaiyiMemPool(memPoolSize, sizeof(TaiyiMessage));
     DBG_ASSERT(_pMsgPool);
-    _pMdPool = new TaiyiMemPool(memPoolSize, sizeof(CThostFtdcDepthMarketDataField));
+    _pMdPool = new TaiyiMemPool(memPoolSize, sizeof(MarketData));
     DBG_ASSERT(_pMdPool);
 }
