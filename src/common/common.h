@@ -37,3 +37,27 @@ typedef int Status;
 #define StatusError (-1)
 #define StatusNotFound (1)
 #define StatusNoMemory (2)
+
+typedef char TimeType[9];
+typedef uint32_t OrderRefType;
+
+const static OrderRefType InvalidOrderRef = 0;
+
+
+enum OrderDirectionType {
+    ORDER_DIRECTION_BUY,
+    ORDER_DIRECTION_SELL,
+};
+
+enum OrderCombOffsetType {
+    ORDER_COMB_OFFSET_OPEN,
+    ORDER_COMB_OFFSET_CLOSE,
+};
+
+enum OrderTradeStatusType {
+    ORDER_TRADE_STATUS_INIT,
+    ORDER_TRADE_STATUS_ERROR_INSERT,
+    ORDER_TRADE_STATUS_PART_TRADED,
+    ORDER_TRADE_STATUS_ALL_TRADED,
+    ORDER_TRADE_STATUS_CANCELED,
+};

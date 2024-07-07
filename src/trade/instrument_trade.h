@@ -37,6 +37,8 @@ class InstrumentTradeModule : public Module {
 
   private:
     Status HandlePushTradeSignalReq(TaiyiMessage* msg);
+    Status HandleOrderInsertErrorRsp(TaiyiMessage* msg);
+    Status HandleOrderTradedRsp(TaiyiMessage* msg);
 
   private:
     std::string _instrumentId;
@@ -44,7 +46,6 @@ class InstrumentTradeModule : public Module {
     uint32_t _tradeInfoNum;
     Position _position; // 当前持仓
     std::map<OrderRefType, Order*> _unfinishedOrder; // 当前未完成的订单信息
-    std::map<OrderRefType, OrderAction*> _unfinishedAction; // 当前未完成的撤单信息
 
   private:
     void AddTradeSignal(uint32_t mdIdx, TradeSignal& signal) {

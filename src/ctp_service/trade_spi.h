@@ -136,4 +136,5 @@ public:
   private:
 	TaiyiMemPool* _pMsgPool;
 	TaiyiMemPool* _pOrderInsertRspPool;
+	TaiyiMemPool* _pOrderTradedRspPool;
 };

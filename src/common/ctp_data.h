@@ -8,27 +8,7 @@
 
 #pragma once
 
-typedef char TimeType[9];
-typedef uint32_t OrderRefType;
-
-const static OrderRefType InvalidOrderRef = 0;
-
-enum OrderDirectionType {
-    ORDER_DIRECTION_BUY,
-    ORDER_DIRECTION_SELL,
-};
-
-enum OrderCombOffsetType {
-    ORDER_COMB_OFFSET_OPEN,
-    ORDER_COMB_OFFSET_CLOSE,
-};
-
-enum OrderTradeStatus {
-    StatusInit,
-    AllTraded,
-    PartTraded,
-    Canceled,
-};
+#include "common.h"
 
 // 深度行情
 struct MarketData
@@ -70,11 +50,12 @@ struct Order {
     OrderRefType ref;
     OrderDirectionType direction;
     OrderCombOffsetType combOffset;
-    int totalVolume; // 总量
+
+    int volumeTotal; // 总量
     double price;
 
-    OrderTradeStatus tradeStatus; // 交易状态
-    int tradedVolume; // 已完成数量
+    OrderTradeStatusType tradeStatus; // 交易状态
+    int volumeTraded; // 已完成数量
 };
 
 // 撤单

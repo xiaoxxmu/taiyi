@@ -73,7 +73,7 @@ OrderRefType CtpService::InsertOrder(std::string instrumentId, Order* order) {
     //ctpOrder.OrderRef = _ref;
 
     ctpOrder.LimitPrice = order->price;
-    ctpOrder.VolumeTotalOriginal = order->totalVolume;
+    ctpOrder.VolumeTotalOriginal = order->volumeTotal;
 
     if (order->direction == ORDER_DIRECTION_BUY) {
         ctpOrder.Direction = THOST_FTDC_D_Buy;

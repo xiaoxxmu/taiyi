@@ -139,6 +139,13 @@ void TaiyiTraderSpi::OnRspOrderInsert(
 		LOG_ERROR("OnRspOrderInsert invalid pInputOrder");
 		return ;
 	}
+	OnErrRtnOrderInsert(pInputOrder, pRspInfo);
+}
+
+void TaiyiTraderSpi::OnErrRtnOrderInsert(CThostFtdcInputOrderField *pInputOrder, CThostFtdcRspInfoField *pRspInfo) {
+	if (!pRspInfo || !pInputOrder) {
+		return;
+	}
 
 	std::string instrumentId = pInputOrder->InstrumentID;
 	InstrumentLocation* location = TaiyiMain()->GetInstrumentLocation(instrumentId);
@@ -149,25 +156,21 @@ void TaiyiTraderSpi::OnRspOrderInsert(
 
 	TaiyiMessage* msg = (TaiyiMessage*)_pMsgPool->Zalloc();
     DBG_ASSERT(msg);
-	msg->cmd = OrderInsertRspCmd;
+	msg->cmd = OrderInsertRspErrorCmd;
 	msg->srcContainerId = _containerId;
     msg->srcModuleId = _moduleId;
     msg->dstContainerId = location->tradeContainer->GetContainerId();
     msg->dstModuleId = location->tradeModule->GetModuleId();
 
-	OrderInsertRsp* rsp = (OrderInsertRsp*)_pOrderInsertRspPool->Zalloc();
+	OrderInsertErrorRsp* rsp = (OrderInsertErrorRsp*)_pOrderInsertRspPool->Zalloc();
 	DBG_ASSERT(rsp);
-	rsp->nRequestId = nRequestID;
-	rsp->retcode = pRspInfo ? int(pRspInfo->ErrorID) : 0;
+	rsp->retcode = pRspInfo->ErrorID;
+	rsp->ref = strtol(pInputOrder->OrderRef, NULL, 10);
 	msg->data[0] = rsp;
 
 	if (location->tradeContainer->Push(msg)) {
         // TODO 异常或重试队列？
     }
-}
-
-void TaiyiTraderSpi::OnErrRtnOrderInsert(CThostFtdcInputOrderField *pInputOrder, CThostFtdcRspInfoField *pRspInfo) {
-	// TODO
 }
 
 void TaiyiTraderSpi::OnRspOrderAction(
@@ -179,7 +182,44 @@ void TaiyiTraderSpi::OnRspOrderAction(
 }
 
 void TaiyiTraderSpi::OnRtnOrder(CThostFtdcOrderField *pOrder) {
-	// TODO
+	if (!pOrder) {return;}
+
+	std::string instrumentId = pOrder->InstrumentID;
+	InstrumentLocation* location = TaiyiMain()->GetInstrumentLocation(instrumentId);
+    if (!location) {
+        LOG_ERROR("InstrumentId %s NOT FOUND", instrumentId.c_str());
+        return ;
+    }
+
+	TaiyiMessage* msg = (TaiyiMessage*)_pMsgPool->Zalloc();
+    DBG_ASSERT(msg);
+	msg->cmd = OrderTradedRspCmd;
+	msg->srcContainerId = _containerId;
+    msg->srcModuleId = _moduleId;
+    msg->dstContainerId = location->tradeContainer->GetContainerId();
+    msg->dstModuleId = location->tradeModule->GetModuleId();
+
+	OrderTradedRsp* rsp = (OrderTradedRsp*)_pOrderTradedRspPool->Zalloc();
+	DBG_ASSERT(rsp);
+
+	rsp->ref = strtol(pOrder->OrderRef, NULL, 10);
+
+	rsp->volumeTotal = pOrder->VolumeTotal;
+	rsp->price = pOrder->LimitPrice;
+	rsp->volumeTraded = pOrder->VolumeTraded;
+
+	if (pOrder->OrderStatus == THOST_FTDC_OST_Canceled) {
+		rsp->tradeStatus = ORDER_TRADE_STATUS_CANCELED;
+	} else if (pOrder->VolumeTotal == pOrder->VolumeTraded) {
+		rsp->tradeStatus = ORDER_TRADE_STATUS_ALL_TRADED;
+	} else {
+		rsp->tradeStatus = ORDER_TRADE_STATUS_PART_TRADED;
+	}
+
+	msg->data[0] = rsp;
+	if (location->tradeContainer->Push(msg)) {
+        // TODO 异常或重试队列？
+    }
 }
 
 void TaiyiTraderSpi::OnRtnTrade(CThostFtdcTradeField *pTrade) {

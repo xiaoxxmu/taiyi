@@ -11,11 +11,14 @@
 #include <stdint.h>
 #include <sys/types.h>
 
+#include "common.h"
+
 enum TaiyiCmdCode {
     PushMarketDataReqCmd = 1,
     PushTradeSignalReqCmd,
 
-    OrderInsertRspCmd,
+    OrderInsertRspErrorCmd,
+    OrderTradedRspCmd,
 };
 
 // 由InstrumentMdModule发送给InstrumentTradeModule的信号处理请求
@@ -26,7 +29,18 @@ struct InstrumentTradeSignalReq {
     int volume;
 };
 
-struct OrderInsertRsp {
+struct OrderInsertErrorRsp {
     int nRequestId;
     int retcode;
+    OrderRefType ref;
+};
+
+struct OrderTradedRsp {
+    OrderRefType ref;
+
+    int volumeTotal; // 总量
+    double price;
+     int volumeTraded; // 已完成数量
+
+    OrderTradeStatusType tradeStatus; // 交易状态
 };

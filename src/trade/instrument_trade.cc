@@ -24,6 +24,10 @@ Status InstrumentTradeModule::Dispatch(TaiyiMessage* msg) {
     switch (msg->cmd) {
         case PushTradeSignalReqCmd:
             return HandlePushTradeSignalReq(msg);
+        case OrderInsertRspErrorCmd:
+            return HandleOrderInsertErrorRsp(msg);
+        case OrderTradedRspCmd:
+            return HandleOrderTradedRsp(msg);
     }
     return StatusOK;
 }
@@ -36,6 +40,56 @@ Status InstrumentTradeModule::HandlePushTradeSignalReq(TaiyiMessage* msg) {
         .volume = req->volume};
     AddTradeSignal(req->curMdNum-1, signal); // TODO 判断信号是否合法，通过idx时间戳等信息来判断
     return HandleTradeSignal();
+}
+
+Status InstrumentTradeModule::HandleOrderInsertErrorRsp(TaiyiMessage* msg) {
+    OrderInsertErrorRsp* rsp = (OrderInsertErrorRsp*)msg->data[0];
+
+    std::map<OrderRefType, Order*>::iterator iter;
+    iter = _unfinishedOrder.find(rsp->ref);
+    Order* order = iter->second;
+    order->tradeStatus = ORDER_TRADE_STATUS_ERROR_INSERT;
+    _unfinishedOrder.erase(order->ref);
+
+    return StatusOK;
+}
+
+Status InstrumentTradeModule::HandleOrderTradedRsp(TaiyiMessage* msg) {
+    int curTraded = 0;
+    OrderTradedRsp* rsp = (OrderTradedRsp*)msg->data[0];
+
+    std::map<OrderRefType, Order*>::iterator iter;
+    iter = _unfinishedOrder.find(rsp->ref);
+    Order* order = iter->second;
+
+    order->volumeTotal = rsp->volumeTotal;
+    order->tradeStatus = rsp->tradeStatus;
+    if (rsp->volumeTraded > order->volumeTraded) {
+        curTraded = rsp->volumeTraded - order->volumeTraded;
+    }
+    order->volumeTraded = rsp->volumeTraded;
+
+    if (order->combOffset == ORDER_COMB_OFFSET_CLOSE) {
+        if (order->direction == ORDER_DIRECTION_BUY) {
+            _position.shortVolume -= curTraded;
+        } else if (order->direction == ORDER_DIRECTION_SELL) {
+            _position.longVolume -= curTraded;
+        }
+    } else if (order->combOffset == ORDER_COMB_OFFSET_OPEN) {
+        if (order->direction == ORDER_DIRECTION_BUY) {
+            _position.longVolume += curTraded;
+        } else if (order->direction == ORDER_DIRECTION_SELL) {
+            _position.shortVolume += curTraded;
+        }
+    }
+
+    // TODO 这里计算一下收益
+
+    if (order->tradeStatus == ORDER_TRADE_STATUS_ALL_TRADED || order->tradeStatus == ORDER_TRADE_STATUS_CANCELED) {
+        _unfinishedOrder.erase(order->ref);
+    }
+
+    return StatusOK;
 }
 
 Status InstrumentTradeModule::HandleTradeSignal() {
@@ -64,20 +118,14 @@ Status InstrumentTradeModule::GoingShort() {
     int sellCloseOrderVolume = 0; // 平多单数量
     for (auto it = _unfinishedOrder.begin(); it != _unfinishedOrder.end(); it++) {
         Order* order = it->second;
-        std::map<OrderRefType, OrderAction*>::iterator iter;
-        iter = _unfinishedAction.find(order->ref);
-        if (iter != _unfinishedAction.end()) {
-            continue;
-        }
-
         if (order->direction == ORDER_DIRECTION_BUY) { // 挂单为多单，则撤单
             CancelOrder(order->ref);
         } else if (order->direction == ORDER_DIRECTION_SELL) {
             // 挂单为空单，这里先不做处理
             // TODO 根据价格判断是否需要撤单, 如果撤单，则在算入最后需要新下单的数量
-            shortOrderVolume += order->totalVolume - order->tradedVolume;
+            shortOrderVolume += order->volumeTotal - order->volumeTraded;
             if (order->combOffset == ORDER_COMB_OFFSET_CLOSE) {
-                sellCloseOrderVolume += order->totalVolume - order->tradedVolume;
+                sellCloseOrderVolume += order->volumeTotal - order->volumeTraded;
             }
         } else {
             LOG_ERROR("invalid order direction %d", order->direction);
@@ -108,18 +156,12 @@ Status InstrumentTradeModule::GoingLong() {
     int buyCloseOrderVolume = 0; // 平空单数量
     for (auto it = _unfinishedOrder.begin(); it != _unfinishedOrder.end(); it++) {
         Order* order = it->second;
-        std::map<OrderRefType, OrderAction*>::iterator iter;
-        iter = _unfinishedAction.find(order->ref);
-        if (iter != _unfinishedAction.end()) {
-            continue;
-        }
-
         if (order->direction == ORDER_DIRECTION_BUY) {
             // 挂单为多单，这里先不做处理；
             // TODO 根据价格判断是否需要撤单, 如果撤单，则在算入最后需要新下单的数量
-            longOrderVolume += order->totalVolume - order->tradedVolume;
+            longOrderVolume += order->volumeTotal - order->volumeTraded;
             if (order->combOffset == ORDER_COMB_OFFSET_CLOSE) {
-                buyCloseOrderVolume +=  order->totalVolume - order->tradedVolume;
+                buyCloseOrderVolume +=  order->volumeTotal - order->volumeTraded;
             }
         } else if (order->direction == ORDER_DIRECTION_SELL) {
             CancelOrder(order->ref);
@@ -150,11 +192,6 @@ Status InstrumentTradeModule::ClosePosition() {
 
     for (auto it = _unfinishedOrder.begin(); it != _unfinishedOrder.end(); it++) {
         Order* order = it->second;
-        std::map<OrderRefType, OrderAction*>::iterator iter;
-        iter = _unfinishedAction.find(order->ref);
-        if (iter != _unfinishedAction.end()) {
-            continue;
-        }
         CancelOrder(order->ref);
     }
 
@@ -177,10 +214,10 @@ Status InstrumentTradeModule::InsertOrder(OrderDirectionType direction, OrderCom
 
     order->direction = direction;
     order->combOffset = combOffset;
-    order->totalVolume = volume;
+    order->volumeTotal = volume;
     order->price = pInfo->signal.price;
-    order->tradeStatus = StatusInit;
-    order->tradedVolume = 0;
+    order->tradeStatus = ORDER_TRADE_STATUS_INIT;
+    order->volumeTraded = 0;
 
     order->ref = _pCtpService->InsertOrder(_instrumentId, order);
     if (!order->ref) {
@@ -207,7 +244,6 @@ Status InstrumentTradeModule::CancelOrder(OrderRefType ref) {
     }
 
     pInfo->actions.push_back(action);
-    _unfinishedAction.insert(std::pair<OrderRefType, OrderAction*>(ref, action));
 
     return StatusOK;
 }
