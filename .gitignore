@@ -1,6 +1,10 @@
 .vscode/*
 .git/*
 
+*.o
+
+client_taiyi_1.0.0
+
 setting.json
 
 build/*
